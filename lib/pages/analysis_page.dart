@@ -1,22 +1,22 @@
-// lib/pages/analysis_page.dart
-import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../providers/god_provider.dart';
 import '../services/storage_service.dart';
 import '../models/god.dart';
 
-class AnalysisPage extends ConsumerStatefulWidget {
-  const AnalysisPage({super.key});
+class AnalysisPage extends StatefulWidget {
+  const AnalysisPage({Key? key}) : super(key: key);
 
   @override
-  ConsumerState<AnalysisPage> createState() => _AnalysisPageState();
+  State<AnalysisPage> createState() => _AnalysisPageState();
 }
 
-class _AnalysisPageState extends ConsumerState<AnalysisPage> {
+class _AnalysisPageState extends State<AnalysisPage> {
   Map<String, dynamic> dailyData = {};
-  bool isLoading = true;
+  Map<String, String> godNames = {};
+  String selectedRange = 'today';
+  bool isLoading = false;
 
   @override
   void initState() {
@@ -25,212 +25,207 @@ class _AnalysisPageState extends ConsumerState<AnalysisPage> {
   }
 
   Future<void> _loadData() async {
+    setState(() => isLoading = true);
+
+    final gods = await StorageService.loadGods();
     final data = await StorageService.loadDailyCounts();
+
     setState(() {
+      godNames = {for (var g in gods) g.id: g.name};
       dailyData = data;
       isLoading = false;
     });
   }
 
+  Map<String, int> _getFilteredCounts() {
+    final now = DateTime.now();
+    final Map<String, int> totals = {};
+
+    dailyData.forEach((dateString, godsMap) {
+      final date = DateTime.tryParse(dateString);
+      if (date == null) return;
+
+      bool include = false;
+      if (selectedRange == 'today') {
+        include = DateFormat('yyyy-MM-dd').format(date) ==
+            DateFormat('yyyy-MM-dd').format(now);
+      } else if (selectedRange == '7days') {
+        include = date.isAfter(now.subtract(const Duration(days: 7)));
+      } else if (selectedRange == '3months') {
+        include = date.isAfter(DateTime(now.year, now.month - 3, now.day));
+      } else if (selectedRange == 'all') {
+        include = true;
+      }
+
+      if (include && godsMap is Map) {
+        (godsMap as Map).forEach((godId, count) {
+          final int value =
+              (count is int) ? count : int.tryParse(count.toString()) ?? 0;
+          totals[godId] = (totals[godId] ?? 0) + value;
+        });
+      }
+    });
+
+    totals.removeWhere((_, count) => count == 0);
+    return totals;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final gods = ref.watch(godListProvider);
+    final totals = _getFilteredCounts();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Analysis'), centerTitle: true),
-      body:
-          isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '📅 Daily Tap Summary',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+      appBar: AppBar(
+        title: const Text('Analysis'),
+        centerTitle: true,
+        backgroundColor: Colors.purple.shade50,
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Range buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _rangeButton('Today', 'today'),
+                      _rangeButton('7 Days', '7days'),
+                      _rangeButton('3 Months', '3months'),
+                      _rangeButton('All', 'all'),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
 
-                    // show gods
-                    Wrap(
-                      spacing: 8,
-                      children:
-                          gods
-                              .map(
-                                (god) => Chip(
-                                  label: Text(god.name),
-                                  avatar: const Icon(Icons.person, size: 16),
-                                ),
-                              )
-                              .toList(),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Debug container
-                    const Text(
-                      '🧩 DebugContainer (Daily Data)',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade400),
-                      ),
-                      child: Text(
-                        const JsonEncoder.withIndent('  ').convert(dailyData),
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 13,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Chart Section
-                    if (dailyData.isNotEmpty)
-                      ..._buildCharts(gods)
-                    else
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Text(
-                            'No data yet — start tapping!',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 16,
-                              fontStyle: FontStyle.italic,
+                  Expanded(
+                    child: totals.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No data available for this period.',
+                              style: TextStyle(fontSize: 14),
                             ),
+                          )
+                        : Column(
+                            children: [
+                              Expanded(
+                                child: BarChart(
+                                  BarChartData(
+                                    alignment: BarChartAlignment.spaceAround,
+                                    borderData: FlBorderData(show: false),
+                                    gridData:  FlGridData(show: true),
+                                    titlesData: FlTitlesData(
+                                      leftTitles: AxisTitles(
+                                        sideTitles: SideTitles(
+                                          showTitles: true,
+                                          reservedSize: 40,
+                                          getTitlesWidget: (value, meta) {
+                                            final exp = math.exp(value) - 1;
+                                            return Text(
+                                              exp.toInt().toString(),
+                                              style: const TextStyle(fontSize: 10),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      bottomTitles: AxisTitles(
+                                        sideTitles: SideTitles(
+                                          showTitles: true,
+                                          getTitlesWidget: (value, meta) {
+                                            final index = value.toInt();
+                                            if (index < 0 ||
+                                                index >= totals.keys.length) {
+                                              return const SizedBox.shrink();
+                                            }
+                                            final godId =
+                                                totals.keys.elementAt(index);
+                                            final godName =
+                                                godNames[godId] ?? godId;
+                                            return SideTitleWidget(
+                                              axisSide: meta.axisSide,
+                                              child: Text(
+                                                godName,
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      rightTitles:  AxisTitles(
+                                        sideTitles:
+                                            SideTitles(showTitles: false),
+                                      ),
+                                      topTitles:  AxisTitles(
+                                        sideTitles:
+                                            SideTitles(showTitles: false),
+                                      ),
+                                    ),
+                                    barGroups:
+                                        List.generate(totals.length, (index) {
+                                      final count =
+                                          totals.values.elementAt(index);
+                                      final normalized =
+                                          (count > 0) ? math.log(count + 1) : 0;
+                                      return BarChartGroupData(
+                                        x: index,
+                                        barRods: [
+                                          BarChartRodData(
+                                            toY: normalized.toDouble(),
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                Colors.purple.shade400,
+                                                Colors.purple.shade800
+                                              ],
+                                              begin: Alignment.bottomCenter,
+                                              end: Alignment.topCenter,
+                                            ),
+                                            width: 20,
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                        ],
+                                      );
+                                    }),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Bar height shown in log scale for better comparison',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                    fontStyle: FontStyle.italic),
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-
-                    const SizedBox(height: 30),
-                    Center(
-                      child: ElevatedButton.icon(
-                        onPressed: _loadData,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Reload Data'),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            ),
     );
   }
 
-  // Create charts per date
-  List<Widget> _buildCharts(List<God> gods) {
-    final List<Widget> charts = [];
-
-    // sort dates (latest first)
-    final sortedDates = dailyData.keys.toList()..sort((a, b) => b.compareTo(a));
-
-    for (var date in sortedDates) {
-      final dayData = dailyData[date] as Map<String, dynamic>;
-
-      // create bar chart groups
-      final List<BarChartGroupData> barGroups = [];
-      int index = 0;
-      for (var god in gods) {
-        final count = (dayData[god.id] ?? 0).toDouble();
-        barGroups.add(
-          BarChartGroupData(
-            x: index,
-            barRods: [
-              BarChartRodData(
-                toY: count,
-                color: Colors.deepPurple,
-                width: 16,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ],
-          ),
-        );
-        index++;
-      }
-
-      charts.add(
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
-            Text(
-              '📊 $date',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            AspectRatio(
-              aspectRatio: 1.7,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: _findMaxY(dayData),
-                  barTouchData: BarTouchData(enabled: true),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 28,
-                      ),
-                    ),
-                    rightTitles:  AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles:  AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          if (value.toInt() >= gods.length) {
-                            return const SizedBox.shrink();
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              gods[value.toInt()].name,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  gridData:  FlGridData(show: true),
-                  borderData: FlBorderData(show: false),
-                  barGroups: barGroups,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return charts;
-  }
-
-  double _findMaxY(Map<String, dynamic> dayData) {
-    if (dayData.isEmpty) return 10;
-    final values = dayData.values.map((e) => (e as num).toDouble()).toList();
-    final maxVal = values.reduce((a, b) => a > b ? a : b);
-    return maxVal + 5; // small padding on top
+  Widget _rangeButton(String label, String value) {
+    final isSelected = selectedRange == value;
+    return ElevatedButton(
+      onPressed: () {
+        setState(() {
+          selectedRange = value;
+        });
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor:
+            isSelected ? Colors.purple.shade400 : Colors.purple.shade100,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      child: Text(label, style: const TextStyle(fontSize: 13)),
+    );
   }
 }

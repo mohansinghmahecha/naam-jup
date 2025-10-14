@@ -57,19 +57,52 @@ class GodListNotifier extends StateNotifier<List<God>> {
   }
 
   // ---------------- Track Daily Count ----------------
+  // Future<void> _updateDailyCount(String godId) async {
+  //   final dailyCounts = await StorageService.loadDailyCounts();
+  //   final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+  //   // today's data or empty
+  //   Map<String, dynamic> todayData =
+  //       (dailyCounts[today] ?? {}) as Map<String, dynamic>;
+
+  //   int currentCount = todayData[godId] ?? 0;
+  //   todayData[godId] = currentCount + 1;
+
+  //   dailyCounts[today] = todayData;
+  //   await StorageService.saveDailyCounts(dailyCounts);
+  // }
+
   Future<void> _updateDailyCount(String godId) async {
+    // Load existing daily data
     final dailyCounts = await StorageService.loadDailyCounts();
+    print("dailyCounts before update: $dailyCounts");
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-    // today's data or empty
-    Map<String, dynamic> todayData =
-        (dailyCounts[today] ?? {}) as Map<String, dynamic>;
+    // Safely extract today's map
+    Map<String, dynamic> todayData = {};
+    final rawTodayData = dailyCounts[today];
 
-    int currentCount = todayData[godId] ?? 0;
+    if (rawTodayData is Map) {
+      // Safely convert all keys/values to String/dynamic
+      todayData = Map<String, dynamic>.from(
+        rawTodayData.map((key, value) => MapEntry(key.toString(), value)),
+      );
+    }
+
+    // Increment today's count for this god
+    int currentCount = (todayData[godId] ?? 0) as int;
     todayData[godId] = currentCount + 1;
 
+    // Update back into main map
     dailyCounts[today] = todayData;
+
+    // Save updated data
     await StorageService.saveDailyCounts(dailyCounts);
+
+    // Debug log
+    print(
+      '✅ Daily count updated for $godId → ${todayData[godId]} (Date: $today)',
+    );
   }
 
   // ---------------- Rename God ----------------
