@@ -32,6 +32,8 @@ class _HomePageState extends ConsumerState<HomePage>
       parent: _controller,
       curve: Curves.easeOut,
     );
+
+    _controller.value = 1.0;
   }
 
   @override
@@ -50,8 +52,9 @@ class _HomePageState extends ConsumerState<HomePage>
 
     final currentGod = gods[selectedGodIndex];
 
-    // Progress circle loops every 108 taps (optional)
-    final progress = (currentGod.sessionCount % 108) / 108;
+    // Just show session as 0–108 visually (without changing logic)
+    final displaySession = currentGod.sessionCount % 109;
+    final progress = displaySession / 108;
 
     return Scaffold(
       body: SafeArea(
@@ -84,6 +87,8 @@ class _HomePageState extends ConsumerState<HomePage>
                   onTapDown: (_) => _controller.reverse(),
                   onTapUp: (_) {
                     _controller.forward();
+
+                    // Use existing incrementCount (no logic changes)
                     ref
                         .read(godListProvider.notifier)
                         .incrementCount(currentGod.id);
@@ -92,7 +97,7 @@ class _HomePageState extends ConsumerState<HomePage>
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Circular progress
+                      // Circular progress (loops visually)
                       SizedBox(
                         width: 220,
                         height: 220,
@@ -100,13 +105,13 @@ class _HomePageState extends ConsumerState<HomePage>
                           value: progress,
                           strokeWidth: 12,
                           backgroundColor: Colors.grey.shade200,
-                          valueColor: AlwaysStoppedAnimation<Color>(
+                          valueColor: const AlwaysStoppedAnimation<Color>(
                             Colors.indigo,
                           ),
                         ),
                       ),
 
-                      // Main button
+                      // Main tap button
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         width: 140,
@@ -138,7 +143,7 @@ class _HomePageState extends ConsumerState<HomePage>
 
               // ---------- COUNTERS ----------
               Text(
-                'Session: ${currentGod.sessionCount}',
+                'Session: $displaySession / 108',
                 style: const TextStyle(fontSize: 18),
               ),
               Text(
