@@ -12,51 +12,118 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage>
-    with SingleTickerProviderStateMixin {
-  int selectedGodIndex = 0;
-  late AnimationController _controller;
+    with TickerProviderStateMixin {
+  late AnimationController _tapController;
+  late AnimationController _resetController;
   late Animation<double> _scaleAnimation;
+
+  bool isResetting = false;
+  double animatedProgress = 0.0;
+  int selectedGodIndex = 0;
 
   @override
   void initState() {
     super.initState();
 
-    _controller = AnimationController(
+    // 👆 Tap scale animation
+    _tapController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 150),
-      lowerBound: 0.9,
+      lowerBound: 0.95,
       upperBound: 1.0,
+      value: 1.0,
     );
+    _scaleAnimation = _tapController.drive(Tween(begin: 1.0, end: 0.95));
 
-    _scaleAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    );
-
-    _controller.value = 1.0;
+    // 🔄 Reset animation controller
+    _resetController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..addListener(() {
+      setState(() {
+        animatedProgress = 1.0 - _resetController.value;
+      });
+    });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _tapController.dispose();
+    _resetController.dispose();
     super.dispose();
+  }
+
+  // 🧩 Handle Tap
+  void _onTap(God currentGod) {
+    if (isResetting) return;
+
+    _tapController.reverse().then((_) => _tapController.forward());
+    ref.read(godListProvider.notifier).incrementCount(currentGod.id);
+
+    final progress =
+        currentGod.sessionCount >= 108 ? 1.0 : currentGod.sessionCount / 108.0;
+
+    setState(() {
+      animatedProgress = progress;
+    });
+
+    // Auto reset when reaches 108
+    if (currentGod.sessionCount + 1 >= 108) {
+      Future.delayed(const Duration(milliseconds: 250), () {
+        _animateReset(currentGod.id);
+      });
+    }
+  }
+
+  // ✅ Reset animation & stop cleanly
+  void _animateReset(String godId) {
+    if (isResetting) return;
+    isResetting = true;
+
+    _resetController.reset();
+    _resetController.forward().whenComplete(() async {
+      // After animation → reset session count only
+      final notifier = ref.read(godListProvider.notifier);
+      final gods =
+          notifier.state.map((god) {
+            if (god.id == godId) {
+              return God(
+                id: god.id,
+                name: god.name,
+                sessionCount: 0,
+                totalCount: god.totalCount,
+              );
+            }
+            return god;
+          }).toList();
+
+      notifier.state = gods;
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      setState(() {
+        animatedProgress = 0.0;
+        isResetting = false;
+      });
+
+      _resetController.stop();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final gods = ref.watch(godListProvider);
-
     if (gods.isEmpty) {
-      return const Scaffold(body: Center(child: Text("No gods found.")));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final currentGod = gods[selectedGodIndex];
-
-    // Just show session as 0–108 visually (without changing logic)
-    final displaySession = currentGod.sessionCount % 109;
-    final progress = displaySession / 108;
+    final progress =
+        isResetting
+            ? animatedProgress
+            : (currentGod.sessionCount % 108) / 108.0;
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: Column(
@@ -84,20 +151,16 @@ class _HomePageState extends ConsumerState<HomePage>
               ScaleTransition(
                 scale: _scaleAnimation,
                 child: GestureDetector(
-                  onTapDown: (_) => _controller.reverse(),
+                  onTapDown: (_) => _tapController.reverse(),
                   onTapUp: (_) {
-                    _controller.forward();
-
-                    // Use existing incrementCount (no logic changes)
-                    ref
-                        .read(godListProvider.notifier)
-                        .incrementCount(currentGod.id);
+                    _tapController.forward();
+                    _onTap(currentGod);
                   },
-                  onTapCancel: () => _controller.forward(),
+                  onTapCancel: () => _tapController.forward(),
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Circular progress (loops visually)
+                      // Circular progress
                       SizedBox(
                         width: 220,
                         height: 220,
@@ -111,7 +174,7 @@ class _HomePageState extends ConsumerState<HomePage>
                         ),
                       ),
 
-                      // Main tap button
+                      // Main button
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         width: 140,
@@ -143,7 +206,7 @@ class _HomePageState extends ConsumerState<HomePage>
 
               // ---------- COUNTERS ----------
               Text(
-                'Session: $displaySession / 108',
+                'Session: ${currentGod.sessionCount % 108}',
                 style: const TextStyle(fontSize: 18),
               ),
               Text(
