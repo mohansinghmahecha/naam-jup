@@ -105,6 +105,42 @@ class GodListNotifier extends StateNotifier<List<God>> {
     );
   }
 
+  // ---------------- Manual Count Update ----------------
+  Future<void> addManualCount(String godId, int count) async {
+    // 1️⃣ Update god totals
+    final updated =
+        state.map((god) {
+          if (god.id == godId) {
+            return God(
+              id: god.id,
+              name: god.name,
+              sessionCount: god.sessionCount,
+              totalCount: god.totalCount + count,
+            );
+          }
+          return god;
+        }).toList();
+    state = updated;
+    await StorageService.saveGods(state);
+
+    // 2️⃣ Log into daily counts for analysis
+    final dailyCounts = await StorageService.loadDailyCounts();
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    Map<String, dynamic> todayData = {};
+    final rawTodayData = dailyCounts[today];
+    if (rawTodayData is Map) {
+      todayData = Map<String, dynamic>.from(
+        rawTodayData.map((key, value) => MapEntry(key.toString(), value)),
+      );
+    }
+
+    todayData[godId] = (todayData[godId] ?? 0) + count;
+    dailyCounts[today] = todayData;
+
+    await StorageService.saveDailyCounts(dailyCounts);
+  }
+
   // ---------------- Rename God ----------------
   Future<void> renameGod(String id, String newName) async {
     final updated =

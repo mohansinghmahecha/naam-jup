@@ -1,4 +1,3 @@
-// lib/pages/home_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/god_provider.dart';
@@ -25,7 +24,6 @@ class _HomePageState extends ConsumerState<HomePage>
   void initState() {
     super.initState();
 
-    // 👆 Tap scale animation
     _tapController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 150),
@@ -35,7 +33,6 @@ class _HomePageState extends ConsumerState<HomePage>
     );
     _scaleAnimation = _tapController.drive(Tween(begin: 1.0, end: 0.95));
 
-    // 🔄 Reset animation controller
     _resetController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -82,7 +79,6 @@ class _HomePageState extends ConsumerState<HomePage>
 
     _resetController.reset();
     _resetController.forward().whenComplete(() async {
-      // After animation → reset session count only
       final notifier = ref.read(godListProvider.notifier);
       final gods =
           notifier.state.map((god) {
@@ -147,7 +143,7 @@ class _HomePageState extends ConsumerState<HomePage>
 
               const SizedBox(height: 40),
 
-              // ---------- TAP BUTTON WITH ANIMATION ----------
+              // ---------- TAP BUTTON ----------
               ScaleTransition(
                 scale: _scaleAnimation,
                 child: GestureDetector(
@@ -160,7 +156,6 @@ class _HomePageState extends ConsumerState<HomePage>
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Circular progress
                       SizedBox(
                         width: 220,
                         height: 220,
@@ -173,8 +168,6 @@ class _HomePageState extends ConsumerState<HomePage>
                           ),
                         ),
                       ),
-
-                      // Main button
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         width: 140,
@@ -216,6 +209,29 @@ class _HomePageState extends ConsumerState<HomePage>
                   color: Colors.grey,
                   fontWeight: FontWeight.w500,
                 ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // ---------- MANUAL COUNTING BUTTON ----------
+              ElevatedButton.icon(
+                icon: const Icon(Icons.edit, color: Colors.white),
+                label: const Text(
+                  "Manual Counting",
+                  style: TextStyle(color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.indigo,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed:
+                    () => _showManualCountingDialog(context, ref, currentGod),
               ),
             ],
           ),
@@ -326,6 +342,72 @@ class _HomePageState extends ConsumerState<HomePage>
                     ref.read(godListProvider.notifier).addGod(name);
                     Navigator.pop(context);
                   }
+                },
+                child: const Text('Add'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  // ✅ NEW: Manual Counting Dialog
+  void _showManualCountingDialog(BuildContext context, WidgetRef ref, God god) {
+    final controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Manual Counting'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '⚠️ Please be genuine — only counts up to 50,000 are allowed.\n'
+                  'This will be added to the total count of the selected God.',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Enter manual count (max 50,000)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final input = int.tryParse(controller.text.trim()) ?? 0;
+                  if (input <= 0 || input > 50000) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a valid number (1–50,000)'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  await ref
+                      .read(godListProvider.notifier)
+                      .addManualCount(god.id, input);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '✅ Added $input to ${god.name}\'s total count!',
+                      ),
+                    ),
+                  );
+
+                  Navigator.pop(context);
                 },
                 child: const Text('Add'),
               ),
