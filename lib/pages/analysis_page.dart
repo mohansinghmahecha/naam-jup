@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../services/storage_service.dart';
 import '../models/god.dart';
+import 'full_analysis_page.dart';
 
 class AnalysisPage extends StatefulWidget {
   const AnalysisPage({Key? key}) : super(key: key);
@@ -37,14 +38,12 @@ class _AnalysisPageState extends State<AnalysisPage>
     });
   }
 
-  /// --- FILTER DATA BY RANGE ---
   Map<String, int> _getFilteredCounts(String range) {
     final now = DateTime.now();
     final Map<String, int> totals = {};
 
     dailyData.forEach((dateString, godsMap) {
-      final cleanDateString = dateString.trim(); // normalize
-      final date = DateTime.tryParse(cleanDateString);
+      final date = DateTime.tryParse(dateString.trim());
       if (date == null) return;
       bool include = false;
 
@@ -71,30 +70,40 @@ class _AnalysisPageState extends State<AnalysisPage>
     return totals;
   }
 
-  /// --- SECTION TITLE ---
   Widget _sectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(top: 16, bottom: 8),
+      padding: const EdgeInsets.only(top: 24, bottom: 8),
       child: Text(
         title,
         style: const TextStyle(
           fontSize: 22,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w700,
           color: Colors.black,
         ),
       ),
     );
   }
 
-  /// --- STATS HEADER ---
   Widget _statsHeader(int total, double avg) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _statBox("Total Count", total.toString()),
-          const SizedBox(width: 40),
+          Container(width: 1, height: 40, color: Colors.grey.shade300),
           _statBox("Avg/Entry", avg.toStringAsFixed(0)),
         ],
       ),
@@ -107,18 +116,17 @@ class _AnalysisPageState extends State<AnalysisPage>
         Text(
           value,
           style: const TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w600,
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
             color: Colors.black,
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 4),
         Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
       ],
     );
   }
 
-  /// --- BAR CHART ---
   Widget _barChart(Map<String, int> totals) {
     if (totals.isEmpty) {
       return const Padding(
@@ -132,12 +140,29 @@ class _AnalysisPageState extends State<AnalysisPage>
     final maxY = counts.reduce(math.max).toDouble();
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: SizedBox(
-        height: 240,
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 10),
+      child: Container(
+        height: 280,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.only(
+          top: 20,
+          left: 10,
+          right: 10,
+          bottom: 20,
+        ),
         child: BarChart(
           BarChartData(
-            maxY: maxY + 5, // smooth top spacing
+            maxY: maxY + 5,
             gridData: FlGridData(show: false),
             borderData: FlBorderData(show: false),
             titlesData: FlTitlesData(
@@ -149,20 +174,22 @@ class _AnalysisPageState extends State<AnalysisPage>
               bottomTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
+                  reservedSize: 40, // prevents clipping
                   getTitlesWidget: (value, meta) {
                     int index = value.toInt();
                     if (index < 0 || index >= labels.length) {
                       return const SizedBox.shrink();
                     }
-                    return SideTitleWidget(
-                      axisSide: meta.axisSide,
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 6.0),
                       child: Text(
                         labels[index],
                         style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.black,
+                          fontSize: 11,
+                          color: Colors.black87,
                           fontWeight: FontWeight.w500,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     );
                   },
@@ -175,15 +202,12 @@ class _AnalysisPageState extends State<AnalysisPage>
                 barRods: [
                   BarChartRodData(
                     toY: counts[i].toDouble(),
-                    width: 16,
-                    borderRadius: BorderRadius.circular(4),
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.black.withOpacity(0.9),
-                        Colors.grey.shade600,
-                      ],
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
+                    width: 22,
+                    borderRadius: BorderRadius.circular(8),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFC107), Colors.black],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
                     ),
                   ),
                 ],
@@ -194,7 +218,6 @@ class _AnalysisPageState extends State<AnalysisPage>
       ),
     );
   }
-
 
   Widget _buildTabContent(String range, String title) {
     final totals = _getFilteredCounts(range);
@@ -209,7 +232,30 @@ class _AnalysisPageState extends State<AnalysisPage>
           _sectionTitle(title),
           _statsHeader(totalCount, avg.toDouble()),
           _barChart(totals),
-
+          const SizedBox(height: 30),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FullAnalysisPage()),
+              );
+            },
+            icon: const Icon(Icons.analytics_outlined, color: Colors.white),
+            label: const Text(
+              "Full Analysis",
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              elevation: 5,
+            ),
+          ),
+          const SizedBox(height: 80),
         ],
       ),
     );
@@ -218,20 +264,29 @@ class _AnalysisPageState extends State<AnalysisPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFDFCFD),
       appBar: AppBar(
         title: const Text(
           "Naam Jap Stats",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+          ),
         ),
         centerTitle: true,
         backgroundColor: Colors.white,
-        elevation: 0,
+        elevation: 0.4,
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.black,
           unselectedLabelColor: Colors.grey,
-          indicatorColor: Colors.black,
+          indicatorColor: Colors.amber.shade700,
+          indicatorWeight: 3,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
           tabs: const [
             Tab(text: "Daily"),
             Tab(text: "Monthly"),
@@ -245,7 +300,7 @@ class _AnalysisPageState extends State<AnalysisPage>
               : TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildTabContent('daily', "This Week"),
+                  _buildTabContent('daily', "Today's Stats"),
                   _buildTabContent('monthly', "Last 30 Days"),
                   _buildTabContent('yearly', "This Year"),
                 ],
