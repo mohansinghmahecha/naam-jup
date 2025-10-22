@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/god_provider.dart';
 import '../models/god.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../widgets/god_counter_widget.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -13,27 +14,14 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage>
     with TickerProviderStateMixin {
-  late AnimationController _tapController;
   late AnimationController _resetController;
-  late Animation<double> _scaleAnimation;
-
-  bool isResetting = false;
   double animatedProgress = 0.0;
+  bool isResetting = false;
   int selectedGodIndex = 0;
 
   @override
   void initState() {
     super.initState();
-
-    _tapController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 150),
-      lowerBound: 0.95,
-      upperBound: 1.0,
-      value: 1.0,
-    );
-    _scaleAnimation = _tapController.drive(Tween(begin: 1.0, end: 0.95));
-
     _resetController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -46,16 +34,14 @@ class _HomePageState extends ConsumerState<HomePage>
 
   @override
   void dispose() {
-    _tapController.dispose();
     _resetController.dispose();
     super.dispose();
   }
 
-  // 🧩 Handle Tap
+  // 🧘‍♂️ Handle Tap
   void _onTap(God currentGod) {
     if (isResetting) return;
 
-    _tapController.reverse().then((_) => _tapController.forward());
     ref.read(godListProvider.notifier).incrementCount(currentGod.id);
 
     final progress =
@@ -65,7 +51,7 @@ class _HomePageState extends ConsumerState<HomePage>
       animatedProgress = progress;
     });
 
-    // Auto reset when reaches 108
+    // Auto reset after 108
     if (currentGod.sessionCount + 1 >= 108) {
       Future.delayed(const Duration(milliseconds: 250), () {
         _animateReset(currentGod.id);
@@ -73,7 +59,7 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
-  // ✅ Reset animation & stop cleanly
+  // 🔄 Reset animation
   void _animateReset(String godId) {
     if (isResetting) return;
     isResetting = true;
@@ -144,63 +130,19 @@ class _HomePageState extends ConsumerState<HomePage>
 
               const SizedBox(height: 40),
 
-              // ---------- TAP BUTTON ----------
-              ScaleTransition(
-                scale: _scaleAnimation,
-                child: GestureDetector(
-                  onTapDown: (_) => _tapController.reverse(),
-                  onTapUp: (_) {
-                    _tapController.forward();
-                    _onTap(currentGod);
-                  },
-                  onTapCancel: () => _tapController.forward(),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: 220,
-                        height: 220,
-                        child: CircularProgressIndicator(
-                          value: progress,
-                          strokeWidth: 12,
-                          backgroundColor: Colors.grey.shade200,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Colors.indigo,
-                          ),
-                        ),
-                      ),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 140,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          color: Colors.indigo.withOpacity(0.9),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.indigo.withOpacity(0.4),
-                              blurRadius: 15,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.touch_app,
-                          color: Colors.white,
-                          size: 60,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              // ---------- COUNTER WIDGET ----------
+              GodCounterWidget(
+                god: currentGod,
+                progress: progress,
+                isResetting: isResetting,
+                onTap: () => _onTap(currentGod),
               ),
 
               const SizedBox(height: 30),
 
               // ---------- COUNTERS ----------
               Text(
-                'Session: ${currentGod.sessionCount % 108}',
+                'Malla: ${currentGod.sessionCount % 108} / 108',
                 style: const TextStyle(fontSize: 18),
               ),
               Text(
@@ -214,7 +156,7 @@ class _HomePageState extends ConsumerState<HomePage>
 
               const SizedBox(height: 40),
 
-              // ---------- MANUAL COUNTING BUTTON ----------
+              // ---------- MANUAL COUNT BUTTON ----------
               ElevatedButton.icon(
                 icon: const Icon(Icons.edit, color: Colors.white),
                 label: const Text(
@@ -351,7 +293,7 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  // ✅ NEW: Manual Counting Dialog
+  // ✅ Manual Counting Dialog
   void _showManualCountingDialog(BuildContext context, WidgetRef ref, God god) {
     final controller = TextEditingController();
 
@@ -379,7 +321,6 @@ class _HomePageState extends ConsumerState<HomePage>
                 ),
               ],
             ),
-
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
