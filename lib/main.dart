@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'pages/home_page.dart';
 import 'pages/analysis_page.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
@@ -19,6 +20,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.indigo,
         scaffoldBackgroundColor: Colors.white,
+        textTheme: GoogleFonts.poppinsTextTheme(), // Global Poppins
       ),
       home: const RootScaffold(),
       debugShowCheckedModeBanner: false,

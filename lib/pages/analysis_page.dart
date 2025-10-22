@@ -20,6 +20,19 @@ class _AnalysisPageState extends State<AnalysisPage>
   bool isLoading = false;
   late TabController _tabController;
 
+  // --- UI Theme Colors ---
+  // Define a cohesive color palette for the stats page
+  static const Color _primaryColor = Color(
+    0xFFD35400,
+  ); // A strong, saffron-like orange
+  static const Color _secondaryColor = Color(
+    0xFFF39C12,
+  ); // A bright, golden-yellow
+  static final Color _scaffoldBgColor = Colors.grey.shade100;
+  static const Color _cardBgColor = Colors.white;
+  static final Color _darkTextColor = Colors.grey.shade900;
+  static final Color _lightTextColor = Colors.grey.shade600;
+
   @override
   void initState() {
     super.initState();
@@ -27,6 +40,7 @@ class _AnalysisPageState extends State<AnalysisPage>
     _loadData();
   }
 
+  // --- Data Loading (Unchanged) ---
   Future<void> _loadData() async {
     setState(() => isLoading = true);
     final gods = await StorageService.loadGods();
@@ -38,6 +52,7 @@ class _AnalysisPageState extends State<AnalysisPage>
     });
   }
 
+  // --- Data Filtering (Unchanged) ---
   Map<String, int> _getFilteredCounts(String range) {
     final now = DateTime.now();
     final Map<String, int> totals = {};
@@ -70,155 +85,142 @@ class _AnalysisPageState extends State<AnalysisPage>
     return totals;
   }
 
+  // --- UI Helper Widgets (Refactored) ---
+
+  // Refactored to act as a header inside a card
   Widget _sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 24, bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
-          color: Colors.black,
-        ),
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: _darkTextColor,
       ),
     );
   }
 
+  // Refactored for a cleaner, modern look with a divider
   Widget _statsHeader(int total, double avg) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return IntrinsicHeight(
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _statBox("Total Count", total.toString()),
-          Container(width: 1, height: 40, color: Colors.grey.shade300),
-          _statBox("Avg/Entry", avg.toStringAsFixed(0)),
+          Expanded(child: _statBox("Total Count", total.toString())),
+          VerticalDivider(
+            color: Colors.grey.shade300,
+            thickness: 1,
+            width: 20,
+            indent: 8,
+            endIndent: 8,
+          ),
+          Expanded(child: _statBox("Avg/Entry", avg.toStringAsFixed(0))),
         ],
       ),
     );
   }
 
+  // Refactored with new theme colors and typography
   Widget _statBox(String label, String value) {
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
           value,
           style: const TextStyle(
-            fontSize: 28,
+            fontSize: 32,
             fontWeight: FontWeight.w700,
-            color: Colors.black,
+            color: _primaryColor, // Use primary theme color
           ),
         ),
         const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        Text(label, style: TextStyle(fontSize: 14, color: _lightTextColor)),
       ],
     );
   }
 
+  // Refactored to use new theme gradient and better "no data" message
   Widget _barChart(Map<String, int> totals) {
     if (totals.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.only(top: 60),
-        child: Text('No data available', style: TextStyle(color: Colors.grey)),
+      return Container(
+        height: 260,
+        alignment: Alignment.center,
+        child: Text(
+          'No data available for this period',
+          style: TextStyle(color: _lightTextColor, fontSize: 16),
+        ),
       );
     }
 
     final counts = totals.values.toList();
     final labels = totals.keys.map((k) => godNames[k] ?? k).toList();
     final maxY = counts.reduce(math.max).toDouble();
+    // Add 20% headroom to the chart's Y-axis for better spacing
+    final chartMaxY = (maxY * 1.2).ceilToDouble();
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 10, 24, 10),
-      child: Container(
-        height: 280,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.only(
-          top: 20,
-          left: 10,
-          right: 10,
-          bottom: 20,
-        ),
-        child: BarChart(
-          BarChartData(
-            maxY: maxY + 5,
-            gridData: FlGridData(show: false),
-            borderData: FlBorderData(show: false),
-            titlesData: FlTitlesData(
-              leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles: AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 40, // prevents clipping
-                  getTitlesWidget: (value, meta) {
-                    int index = value.toInt();
-                    if (index < 0 || index >= labels.length) {
-                      return const SizedBox.shrink();
-                    }
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 6.0),
-                      child: Text(
-                        labels[index],
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.center,
+    return SizedBox(
+      height: 260,
+      child: BarChart(
+        BarChartData(
+          maxY: chartMaxY,
+          gridData: FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 38, // Give labels a bit more space
+                getTitlesWidget: (value, meta) {
+                  int index = value.toInt();
+                  if (index < 0 || index >= labels.length) {
+                    return const SizedBox.shrink();
+                  }
+                  return SideTitleWidget(
+                    axisSide: meta.axisSide,
+                    space: 6.0,
+                    child: Text(
+                      labels[index],
+                      style: TextStyle(
+                        fontSize: 12, // Slightly larger for readability
+                        color: _darkTextColor,
+                        fontWeight: FontWeight.w500,
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               ),
             ),
-            barGroups: List.generate(counts.length, (i) {
-              return BarChartGroupData(
-                x: i,
-                barRods: [
-                  BarChartRodData(
-                    toY: counts[i].toDouble(),
-                    width: 22,
-                    borderRadius: BorderRadius.circular(8),
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFC107), Colors.black],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                ],
-              );
-            }),
           ),
+          barGroups: List.generate(counts.length, (i) {
+            return BarChartGroupData(
+              x: i,
+              barRods: [
+                BarChartRodData(
+                  toY: counts[i].toDouble(),
+                  width: 22,
+                  // Use a vertical-only border radius
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(6),
+                  ),
+                  // Use the new theme gradient
+                  gradient: const LinearGradient(
+                    colors: [_secondaryColor, _primaryColor],
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                  ),
+                ),
+              ],
+            );
+          }),
         ),
       ),
     );
   }
 
+  // --- Main Content Widget (Refactored) ---
+  // This now builds a "dashboard card" for a cleaner look
   Widget _buildTabContent(String range, String title) {
     final totals = _getFilteredCounts(range);
     final totalCount = totals.values.fold<int>(0, (a, b) => a + b);
@@ -226,13 +228,39 @@ class _AnalysisPageState extends State<AnalysisPage>
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
+      // Add padding around the entire tab content
+      padding: const EdgeInsets.all(16.0),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _sectionTitle(title),
-          _statsHeader(totalCount, avg.toDouble()),
-          _barChart(totals),
-          const SizedBox(height: 30),
+          // This container acts as a dashboard card
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: _cardBgColor,
+              borderRadius: BorderRadius.circular(16.0),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.15),
+                  spreadRadius: 2,
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionTitle(title),
+                const SizedBox(height: 20),
+                _statsHeader(totalCount, avg.toDouble()),
+                const SizedBox(height: 24),
+                _barChart(totals),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Styled the button to match the new theme
           ElevatedButton.icon(
             onPressed: () {
               Navigator.push(
@@ -241,52 +269,41 @@ class _AnalysisPageState extends State<AnalysisPage>
               );
             },
             icon: const Icon(Icons.analytics_outlined, color: Colors.white),
-            label: const Text(
-              "Full Analysis",
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-            ),
+            label: const Text("Full Analysis"),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
+              backgroundColor: _primaryColor, // Use theme color
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
               ),
-              elevation: 5,
+              elevation: 2,
             ),
           ),
-          const SizedBox(height: 80),
+          const SizedBox(height: 40),
         ],
       ),
     );
   }
 
+  // --- Build Method (Refactored) ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFDFCFD),
+      backgroundColor: _scaffoldBgColor, // Use soft grey background
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           "Naam Jap Stats",
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-          ),
+          style: TextStyle(color: _darkTextColor, fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0.4,
+        backgroundColor: _cardBgColor, // Use white for AppBar
+        elevation: 0.5, // Add a subtle shadow
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.black,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: Colors.amber.shade700,
-          indicatorWeight: 3,
-          labelStyle: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
+          labelColor: _primaryColor, // Use theme color
+          unselectedLabelColor: _lightTextColor,
+          indicatorColor: _primaryColor, // Use theme color
           tabs: const [
             Tab(text: "Daily"),
             Tab(text: "Monthly"),
@@ -296,7 +313,9 @@ class _AnalysisPageState extends State<AnalysisPage>
       ),
       body:
           isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(
+                child: CircularProgressIndicator(color: _primaryColor),
+              )
               : TabBarView(
                 controller: _tabController,
                 children: [

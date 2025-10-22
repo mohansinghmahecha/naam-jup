@@ -24,9 +24,10 @@ class GodListNotifier extends StateNotifier<List<God>> {
     } else {
       // default sample gods
       state = [
-        God(id: const Uuid().v4(), name: 'Shiva'),
-        God(id: const Uuid().v4(), name: 'Vishnu'),
-        God(id: const Uuid().v4(), name: 'Lakshmi'),
+        God(id: const Uuid().v4(), name: 'राम'),
+        God(id: const Uuid().v4(), name: 'शिव'),
+        God(id: const Uuid().v4(), name: 'विष्णु'),
+        God(id: const Uuid().v4(), name: 'लक्ष्मी'),
       ];
       await StorageService.saveGods(state);
     }

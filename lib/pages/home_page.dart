@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/god_provider.dart';
 import '../models/god.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -132,8 +133,8 @@ class _HomePageState extends ConsumerState<HomePage>
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
                     currentGod.name,
-                    style: const TextStyle(
-                      fontSize: 30,
+                    style: GoogleFonts.alkatra(
+                      fontSize: 80,
                       fontWeight: FontWeight.bold,
                       color: Colors.indigo,
                     ),
@@ -378,7 +379,7 @@ class _HomePageState extends ConsumerState<HomePage>
                 ),
               ],
             ),
-            
+
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),

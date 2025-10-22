@@ -16,7 +16,7 @@ dependencies:
   shared_preferences: ^2.0.15
   uuid: ^3.0.6
   intl: ^0.18.0  
-  google_fonts: ^6.2.1
+  google_fonts: ^6.3.2
   cupertino_icons: ^1.0.8
   fl_chart: ^0.60.0   # <-- Keep this version
   table_calendar: ^3.0.9
